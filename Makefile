@@ -6,7 +6,7 @@ help: ## show targets
 
 up: ## start agent + dashboard (mock settlement, no keys needed)
 	docker compose up --build -d
-	@echo "dashboard http://localhost:3000  agent http://localhost:8787/health"
+	@echo "dashboard http://localhost:3000  agent http://localhost:8790/health"
 
 down: ## stop everything
 	docker compose down
@@ -22,10 +22,10 @@ wasm: ## build the contract and copy artifacts/mandate_otc.wasm
 	docker compose run --rm --no-deps contract-build
 
 demo: ## run the negotiation in the terminal
-	docker compose run --rm --no-deps agent npm run demo
+	docker compose run --rm -T --no-deps agent npm run demo
 
 quote: ## day-1 Intents spike: real 1Click quote for 25 USDC
-	docker compose run --rm --no-deps agent npm run quote
+	docker compose run --rm -T --no-deps agent npm run quote
 
 deploy: wasm ## deploy the contract to mainnet
 	docker compose run --rm --no-deps agent npm run deploy

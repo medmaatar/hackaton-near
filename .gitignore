@@ -7,4 +7,5 @@ artifacts/
 data/
 target/
 *.log
+*.jsonl
 .DS_Store

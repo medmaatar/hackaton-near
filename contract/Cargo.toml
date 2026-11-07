@@ -24,3 +24,6 @@ lto = true
 debug = false
 panic = "abort"
 overflow-checks = true
+
+[workspace]
+members = ["mock-ft"]

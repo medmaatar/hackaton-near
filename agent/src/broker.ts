@@ -7,6 +7,7 @@
 
 import { audit } from "./audit.js";
 import { config, hasAgentKey } from "./config.js";
+import { executesOnchain, runtime } from "./runtime.js";
 import { DESKS, deskTurn, describeOffer, formatUsdc } from "./desks.js";
 import * as near from "./contract.js";
 import { requestQuote, waitForSettlement } from "./intents.js";
@@ -45,7 +46,7 @@ export interface RunSnapshot {
 const state: RunSnapshot = {
   running: false,
   stage: "idle",
-  mandateId: Number(process.env.MANDATE_ID ?? 0),
+  mandateId: runtime.mandateId,
   offers: [],
   legs: [],
   events: 0,
@@ -203,21 +204,20 @@ async function executeLeg(mandate: Mandate, offer: Offer, live: boolean): Promis
     return leg;
   }
 
-  if (!live) {
+  if (!executesOnchain()) {
     leg.status = "executed";
     leg.amountOut = minOut.toString();
     leg.amountOutFormatted = amountOutFormatted || "simulated";
     log(
       "settlement.submitted",
       "settlement",
-      `mock mode: ${formatUsdc(offer.size)} USDC would be transferred to ${depositAddress}`,
+      `dry-run: ${formatUsdc(offer.size)} USDC would be transferred to ${depositAddress}`,
       { desk: offer.desk },
     );
     return leg;
   }
 
-  if (!hasAgentKey) throw new Error("live mode requires AGENT_SECRET_KEY");
-
+  // Real onchain execution (local sandbox or mainnet live mode).
   const result = await near.call("approve_and_swap", {
     mandate_id: String(mandate.id),
     counterparty: offer.account,
@@ -236,11 +236,22 @@ async function executeLeg(mandate: Mandate, offer: Offer, live: boolean): Promis
 
   leg.status = "executed";
   leg.amountOut = minOut.toString();
-  leg.amountOutFormatted = amountOutFormatted;
-  log("settlement.submitted", "settlement", `funds released to 1Click for ${offer.desk}`, {
+  leg.amountOutFormatted = amountOutFormatted || "onchain";
+  log("settlement.submitted", "settlement", `vault transferred ${formatUsdc(offer.size)} USDC to ${depositAddress}`, {
     desk: offer.desk,
     depositAddress,
   });
+
+  if (!live) {
+    // Local chain: simulate the Intents settlement arrival and update reputation.
+    leg.status = "settled";
+    await near.reportOutcome(mandate.id, offer.account, true);
+    log("settlement.settled", "settlement", `mock 1Click settlement confirmed for ${offer.desk}`, {
+      desk: offer.desk,
+    });
+    log("reputation.updated", "agent", `reported SUCCESS for ${offer.desk}`, { desk: offer.desk });
+    return leg;
+  }
 
   const settled = await waitForSettlement(depositAddress, undefined);
   leg.status = settled.status === "SUCCESS" ? "settled" : "failed";

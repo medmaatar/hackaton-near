@@ -3,14 +3,19 @@
 import { createServer } from "node:http";
 import { audit } from "./audit.js";
 import { config, hasAgentKey, llmEnabled } from "./config.js";
+import { runtime } from "./runtime.js";
 import { runDemo, snapshot } from "./broker.js";
 import * as near from "./contract.js";
 import { DESKS } from "./desks.js";
 
 const PORT = config.port;
 
+function jsonStringify(obj: unknown): string {
+  return JSON.stringify(obj, (_, v) => (typeof v === "bigint" ? v.toString() : v));
+}
+
 function json(res: import("node:http").ServerResponse, status: number, body: unknown) {
-  const payload = JSON.stringify(body);
+  const payload = jsonStringify(body);
   res.writeHead(status, {
     "Content-Type": "application/json",
     "Cache-Control": "no-store",
@@ -35,7 +40,8 @@ const server = createServer(async (req, res) => {
     return json(res, 200, {
       ok: true,
       settlementMode: config.settlementMode,
-      contract: config.contractId,
+      contract: runtime.contractId,
+      chain: runtime.chain,
       agent: config.agentAccount,
       hasAgentKey,
       llm: llmEnabled,
@@ -68,8 +74,8 @@ const server = createServer(async (req, res) => {
       "Access-Control-Allow-Origin": "*",
     });
     res.write(`retry: 2000\n\n`);
-    for (const e of audit.history()) res.write(`data: ${JSON.stringify(e)}\n\n`);
-    const unsubscribe = audit.subscribe((e) => res.write(`data: ${JSON.stringify(e)}\n\n`));
+    for (const e of audit.history()) res.write(`data: ${jsonStringify(e)}\n\n`);
+    const unsubscribe = audit.subscribe((e) => res.write(`data: ${jsonStringify(e)}\n\n`));
     const keepAlive = setInterval(() => res.write(`: ping\n\n`), 15_000);
     req.on("close", () => {
       clearInterval(keepAlive);
@@ -80,7 +86,7 @@ const server = createServer(async (req, res) => {
 
   if (url.pathname === "/api/demo/run" && req.method === "POST") {
     const body = await readBody(req);
-    const mandateId = Number(body.mandateId ?? process.env.MANDATE_ID ?? 0);
+    const mandateId = Number(body.mandateId ?? runtime.mandateId);
     runDemo(mandateId).catch((err) => audit.log("error", "agent", String(err)));
     return json(res, 202, { started: true, mandateId });
   }

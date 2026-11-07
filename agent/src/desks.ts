@@ -136,7 +136,6 @@ export function formatBtc(amount: bigint): string {
 
 export function describeOffer(offer: Offer): string {
   const side = offer.edgeBps <= 0 ? "below" : "above";
-  return `${offer.desk}: ${formatUsdc(offer.size)} USDC for ${formatBtc(offer.minOut)} BTC (${Math.abs(
-    offer.edgeBps,
-  ).toFixed(2)}% ${side} reference)`;
+  const pct = (Math.abs(offer.edgeBps) / 100).toFixed(2);
+  return `${offer.desk}: ${formatUsdc(offer.size)} USDC for ${formatBtc(offer.minOut)} BTC (${pct}% ${side} reference)`;
 }

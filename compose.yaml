@@ -20,9 +20,10 @@ services:
       NEAR_AI_BASE_URL: ${NEAR_AI_BASE_URL:-https://cloud-api.near.ai/v1}
       NEAR_AI_MODEL: ${NEAR_AI_MODEL:-deepseek-v4-flash}
     ports:
-      - "8787:8787"
+      - "${AGENT_PORT:-8790}:8787"
     volumes:
       - audit-data:/data
+      - ./artifacts:/artifacts:ro
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:8787/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
@@ -52,7 +53,7 @@ services:
     command:
       - sh
       - -c
-      - mkdir -p /artifacts && cp /out/mandate_otc.wasm /artifacts/ && sha256sum /artifacts/mandate_otc.wasm
+      - mkdir -p /artifacts && cp /out/*.wasm /artifacts/ && sha256sum /artifacts/*.wasm
     volumes:
       - ./artifacts:/artifacts
     profiles: ["build"]

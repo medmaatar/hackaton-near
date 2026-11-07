@@ -12,20 +12,24 @@ RUN rustup target add wasm32-unknown-unknown
 WORKDIR /app
 
 # Cache the dependency graph before the sources land.
-COPY contract/Cargo.toml contract/Cargo.lock* ./
-RUN mkdir -p src && echo 'pub fn _placeholder() {}' > src/lib.rs \
- && cargo fetch || cargo fetch
+COPY contract/Cargo.toml ./
+COPY contract/mock-ft/Cargo.toml ./mock-ft/
+RUN mkdir -p src mock-ft/src \
+ && echo 'pub fn _placeholder() {}' > src/lib.rs \
+ && echo 'pub fn _placeholder() {}' > mock-ft/src/lib.rs \
+ && cargo fetch
 
 COPY contract/ ./
 
-# 1. unit tests for every mandate rule
-# 2. reproducible wasm artifact
+# 1. rule tests for the mandate contract
+# 2. reproducible wasm artifacts: the mandate contract and the sandbox-only token
 RUN --mount=type=cache,target=/app/target \
     --mount=type=cache,target=/usr/local/cargo/registry \
-    cargo test --release -- --nocapture \
- && cargo build --target wasm32-unknown-unknown --release \
+    cargo test --release -p mandate-otc -- --nocapture \
+ && cargo build --target wasm32-unknown-unknown --release --workspace \
  && mkdir -p /out \
- && cp target/wasm32-unknown-unknown/release/mandate_otc.wasm /out/mandate_otc.wasm
+ && find target/wasm32-unknown-unknown/release -name "*.wasm" -exec cp {} /out/ \; \
+ && ls -la /out
 
 FROM scratch AS artifact
-COPY --from=builder /out/mandate_otc.wasm /mandate_otc.wasm
+COPY --from=builder /out/ /

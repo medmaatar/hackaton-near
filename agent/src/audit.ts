@@ -39,7 +39,8 @@ class Audit {
     this.buffer.push(event);
     if (this.buffer.length > MAX_BUFFER) this.buffer.shift();
     try {
-      appendFileSync(AUDIT_PATH, JSON.stringify(event) + "\n");
+      const line = JSON.stringify(event, (_, v) => (typeof v === "bigint" ? v.toString() : v));
+      appendFileSync(AUDIT_PATH, line + "\n");
     } catch {
       /* disk full or read-only: the SSE stream still has it */
     }
