@@ -1,0 +1,22 @@
+{
+  "name": "mandate-otc-agent",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "tsx src/server.ts",
+    "demo": "tsx src/scripts/demo.ts",
+    "quote": "tsx src/scripts/quote.ts",
+    "deploy": "tsx src/scripts/deploy.ts",
+    "bootstrap": "tsx src/scripts/bootstrap.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "near-api-js": "^7.4.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2"
+  }
+}

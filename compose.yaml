@@ -1,0 +1,72 @@
+name: mandate-otc
+
+services:
+  agent:
+    build:
+      context: .
+      dockerfile: docker/agent.Dockerfile
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      PORT: 8787
+      AUDIT_PATH: /data/audit.jsonl
+      NEAR_NETWORK: ${NEAR_NETWORK:-mainnet}
+      MANDATE_CONTRACT: ${MANDATE_CONTRACT:-mandate-otc.near}
+      AGENT_ACCOUNT: ${AGENT_ACCOUNT:-broker.near}
+      TRADER_ACCOUNT: ${TRADER_ACCOUNT:-amine.near}
+      SETTLEMENT_MODE: ${SETTLEMENT_MODE:-mock}
+      MANDATE_ID: ${MANDATE_ID:-0}
+      NEAR_AI_BASE_URL: ${NEAR_AI_BASE_URL:-https://cloud-api.near.ai/v1}
+      NEAR_AI_MODEL: ${NEAR_AI_MODEL:-deepseek-v4-flash}
+    ports:
+      - "8787:8787"
+    volumes:
+      - audit-data:/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:8787/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  dashboard:
+    build:
+      context: .
+      dockerfile: docker/dashboard.Dockerfile
+    ports:
+      - "3000:80"
+    depends_on:
+      agent:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # Build-only: compiles the contract, runs every rule test, emits the wasm.
+  #   docker compose run --rm contract-build
+  #   docker compose cp contract-build:/out/mandate_otc.wasm ./artifacts/
+  contract-build:
+    build:
+      context: .
+      dockerfile: docker/contract.Dockerfile
+      target: builder
+    command:
+      - sh
+      - -c
+      - mkdir -p /artifacts && cp /out/mandate_otc.wasm /artifacts/ && sha256sum /artifacts/mandate_otc.wasm
+    volumes:
+      - ./artifacts:/artifacts
+    profiles: ["build"]
+
+  # Deploy / call helper with the NEAR CLI baked in.
+  #   docker compose run --rm near-cli account view mandate-otc.near
+  near-cli:
+    build:
+      context: .
+      dockerfile: docker/near-cli.Dockerfile
+    volumes:
+      - ~/.near-credentials:/root/.near-credentials:ro
+      - ./artifacts:/artifacts:ro
+    profiles: ["tools"]
+
+volumes:
+  audit-data:

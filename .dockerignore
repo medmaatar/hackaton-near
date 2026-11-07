@@ -1,0 +1,13 @@
+# BuildKit only needs the sources, never the host's toolchains.
+.git
+.gitignore
+**/node_modules
+**/dist
+**/.next
+artifacts
+data
+.env
+.env.*
+!.env.example
+*.md
+!README.md

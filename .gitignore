@@ -1,0 +1,10 @@
+node_modules/
+dist/
+.env
+.env.*
+!.env.example
+artifacts/
+data/
+target/
+*.log
+.DS_Store
